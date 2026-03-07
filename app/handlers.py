@@ -139,7 +139,7 @@ async def collect_media(message: Message, state: FSMContext):
             await message.bot.send_media_group(chat_id=spyChannel, media=media_group2)
             await state.clear()
             await state.set_state(AnonStates.in_choose)
-            await message.answer("Пост отправлен")
+            await message.answer("Пост отправлен", reply_markup=to_main_menu)
     else:
         time = await get_question_time(message.from_user.id)
         if time:

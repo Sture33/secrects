@@ -27,6 +27,7 @@ async def show_main_menu(message: Message, state: FSMContext):
             reply_markup=chooses
         )
     else:
+        await create_new_user(message.from_user.id, message.from_user.first_name, message.from_user.last_name, message.from_user.username)
         await message.answer(
             "Выберите что отправить.",
             reply_markup=chooses
@@ -40,6 +41,7 @@ async def is_subscribed(bot: Bot, user_id):
 
 @router.message(F.chat.type == "private", CommandStart())
 async def start(message: Message, state: FSMContext, bot: Bot):
+    await show_main_menu(message, state)
     if await is_subscribed(bot, message.from_user.id):
         await show_main_menu(message, state)
     else:
@@ -96,7 +98,6 @@ async def st_message(message: Message, bot: Bot, state: FSMContext):
         await update_question_time(message.from_user.id)
         await message.answer('Отправлено!', reply_markup=to_main_menu)
         await state.set_state(AnonStates.in_choose)
-
     else:
         time = await get_question_time(message.from_user.id)
         if time:
@@ -104,7 +105,6 @@ async def st_message(message: Message, bot: Bot, state: FSMContext):
             await message.answer(
                 f"Вы можете отправлять не более одного вопроса каждые 5 минут.\nСледующий вопрос будет доступен в {dt}.",
                 reply_markup=to_main_menu)
-        await state.set_state(AnonStates.in_choose)
 
 
 @router.message(AnonStates.with_media)

@@ -90,7 +90,7 @@ async def st_message(message: Message, bot: Bot, state: FSMContext):
         await bot.send_message(chat_id=mainChannel,
                                text=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{message.text}</blockquote>",
                                parse_mode="HTML")
-        await bot.send_message(chat_id=spyChannel,
+        await bot.send_message(chat_id=CEO,
                                text=f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{message.text}</blockquote>",
                                parse_mode="HTML")
         await update_question_time(message.from_user.id)

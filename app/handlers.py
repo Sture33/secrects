@@ -41,7 +41,6 @@ async def is_subscribed(bot: Bot, user_id):
 
 @router.message(F.chat.type == "private", CommandStart())
 async def start(message: Message, state: FSMContext, bot: Bot):
-    await show_main_menu(message, state)
     if await is_subscribed(bot, message.from_user.id):
         await show_main_menu(message, state)
     else:

@@ -33,13 +33,24 @@ async def show_main_menu(message: Message, state: FSMContext):
         )
 
 
+async def is_subscribed(bot: Bot, user_id):
+    member = await bot.get_chat_member(mainChannel, user_id)
+    return member.status in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR)
+
+
 @router.message(F.chat.type == "private", CommandStart())
-async def start(message: Message, state: FSMContext):
-    await show_main_menu(message, state)
+async def start(message: Message, state: FSMContext, bot: Bot):
+    if await is_subscribed(bot, message.from_user.id):
+        await show_main_menu(message, state)
+    else:
+        await message.answer(
+            'Вы не подписаны на наш канал\nПожалуйста сначало подпишитесь\nhttps://t.me/+3A1xdWCgeE8xY2Zi')
+
 
 @router.message(AnonStates.in_choose)
 async def gone_menu(message: Message, state: FSMContext):
     await show_main_menu(message, state)
+
 
 @router.callback_query(F.data == 'only_text')
 async def only_text(callback: CallbackQuery, state: FSMContext):

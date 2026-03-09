@@ -17,22 +17,6 @@ async def init_db():
             username TEXT,
             last_question_at INTEGER )
         """)
-    await cursor.execute("""
-            CREATE TABLE IF NOT EXISTS questions(
-                id INTEGER PRIMARY KEY,
-                question_id INTEGER,
-                question_owner_id INTEGER,
-                FOREIGN KEY (question_owner_id) REFERENCES users(user_id)
-            )
-    """)
-    await cursor.execute("""
-    CREATE TABLE IF NOT EXISTS anonymous_answers(
-        id INTEGER PRIMARY KEY,
-        question_id INTEGER,
-        answer_owner_id INTEGER,
-        FOREIGN KEY (question_id) REFERENCES questions(question_id),
-        FOREIGN KEY (answer_owner_id) REFERENCES users(user_id))
-    """)
 
     await conn.commit()
     await conn.close()
@@ -48,15 +32,6 @@ async def create_new_user(user_id, user_first_name, user_last_name, username):
     finally:
         await conn.close()
     return user_id
-
-
-async def get_all_users():
-    conn = await aiosqlite.connect(DB_NAME)
-    cursor = await conn.cursor()
-    await cursor.execute("SELECT user_id, username FROM users")
-    users = await cursor.fetchall()
-    await conn.close()
-    return users
 
 
 async def check_user(userid):
@@ -112,30 +87,3 @@ async def get_question_time(user_id):
     if row:
         return row[0]
     return None
-
-async def create_new_question(user_id,question_id):
-    async with aiosqlite.connect(DB_NAME) as conn:
-        await conn.execute(
-            'INSERT INTO questions (question_id, question_owner_id) VALUES (?,?)',
-            (question_id, user_id)
-        )
-        await conn.commit()
-
-async def create_new_anonymous_answer(user_id,question_id):
-    async with aiosqlite.connect(DB_NAME) as conn:
-        await conn.execute(
-            'INSERT INTO anonymous_answers (question_id, answer_owner_id) VALUES (?,?)',
-            (question_id, user_id)
-        )
-        await conn.commit()
-
-async def get_question_owner(question_id):
-    async with aiosqlite.connect(DB_NAME) as conn:
-        async with conn.execute(
-            'SELECT question_owner_id FROM questions WHERE question_id = ?',(question_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-        if row:
-            return row[0]
-        else:
-            return None

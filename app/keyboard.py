@@ -9,6 +9,3 @@ to_main_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='Назад', callback_data='to_menu')],
 ])
 
-cancel = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Отмена', callback_data='cancel')],
-])

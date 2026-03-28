@@ -11,18 +11,18 @@ from app.states import AnonStates
 from config import CEO, mainChannel, spyChannel, commGroup, spyComm
 from aiogram.filters import CommandStart
 from aiogram.types import Message, ChatMemberUpdated, ReplyKeyboardRemove, CallbackQuery, InputMediaPhoto, \
-    InputMediaVideo, InputMediaDocument
+    InputMediaVideo, InputMediaDocument, BotCommand
 
 from db.main import create_new_user, check_user, create_new_message, check_message, get_message_group_id, \
     get_and_create_new_random_name
 
 router = Router()
 
-@router.my_chat_member()
-async def bot_added(event: ChatMemberUpdated):
-    print("CHAT ID:", event.chat.id)
-    print("CHAT TITLE:", event.chat.title)
-    print("CHAT TYPE:", event.chat.type)
+async def setup_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+    ]
+    await bot.set_my_commands(commands)
 @router.message(F.chat.type.in_(["group", "supergroup"]))
 async def handle_group_message(message: Message):
     if message.forward_from_chat:

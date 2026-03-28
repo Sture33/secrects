@@ -5,17 +5,28 @@ from aiogram import Router, Bot, F
 from aiogram.enums import ChatMemberStatus
 from aiogram.fsm.context import FSMContext
 
-from app.functions import generate_full_name
+from app.functions import generate_full_name, generate_unique_code
 from app.keyboard import chooses, to_main_menu
 from app.states import AnonStates
-from config import CEO, mainChannel, spyChannel
+from config import CEO, mainChannel, spyChannel, commGroup, spyComm
 from aiogram.filters import CommandStart
 from aiogram.types import Message, ChatMemberUpdated, ReplyKeyboardRemove, CallbackQuery, InputMediaPhoto, \
     InputMediaVideo, InputMediaDocument
 
-from db.main import create_new_user, check_user, can_ask_question, update_question_time, get_question_time
+from db.main import create_new_user, check_user, create_new_message, check_message, get_message_group_id, \
+    get_and_create_new_random_name
 
 router = Router()
+
+@router.my_chat_member()
+async def bot_added(event: ChatMemberUpdated):
+    print("CHAT ID:", event.chat.id)
+    print("CHAT TITLE:", event.chat.title)
+    print("CHAT TYPE:", event.chat.type)
+@router.message(F.chat.type.in_(["group", "supergroup"]))
+async def handle_group_message(message: Message):
+    if message.forward_from_chat:
+        await create_new_message(message.forward_from_message_id, message.message_id)
 
 
 async def show_main_menu(message: Message, state: FSMContext):
@@ -27,7 +38,8 @@ async def show_main_menu(message: Message, state: FSMContext):
             reply_markup=chooses
         )
     else:
-        await create_new_user(message.from_user.id, message.from_user.first_name, message.from_user.last_name, message.from_user.username)
+        await create_new_user(message.from_user.id, message.from_user.first_name, message.from_user.last_name,
+                              message.from_user.username)
         await message.answer(
             "Выберите что отправить.",
             reply_markup=chooses
@@ -43,6 +55,7 @@ async def is_subscribed(bot: Bot, user_id):
 async def start(message: Message, state: FSMContext, bot: Bot):
     if await is_subscribed(bot, message.from_user.id):
         await show_main_menu(message, state)
+        await get_and_create_new_random_name(message.from_user.id)
     else:
         await message.answer(
             'Вы не подписаны на наш канал\nПожалуйста сначало подпишитесь\nhttps://t.me/+3A1xdWCgeE8xY2Zi')
@@ -70,6 +83,13 @@ async def with_media(callback: CallbackQuery, state: FSMContext):
         reply_markup=to_main_menu)
 
 
+@router.callback_query(F.data == 'anon_comm')
+async def comments_room(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(AnonStates.anon_c_room)
+    await callback.message.edit_text('Сначало отправьте айди сообщение из канала', reply_markup=to_main_menu)
+
+
 @router.callback_query(F.data == 'to_menu')
 async def send_main_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
@@ -86,75 +106,209 @@ async def send_main_menu(callback: CallbackQuery, state: FSMContext):
 
 @router.message(AnonStates.only_text)
 async def st_message(message: Message, bot: Bot, state: FSMContext):
-    if await can_ask_question(message.from_user.id):
-        random_name = await generate_full_name()
-        await bot.send_message(chat_id=mainChannel,
-                               text=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{message.text}</blockquote>",
-                               parse_mode="HTML")
-        await bot.send_message(chat_id=spyChannel,
-                               text=f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{message.text}</blockquote>",
-                               parse_mode="HTML")
-        await update_question_time(message.from_user.id)
-        await message.answer('Отправлено!', reply_markup=to_main_menu)
-        await state.set_state(AnonStates.in_choose)
-    else:
-        time = await get_question_time(message.from_user.id)
-        if time:
-            dt = datetime.datetime.utcfromtimestamp(time + 18300, ).strftime('%H:%M:%S')
-            await message.answer(
-                f"Вы можете отправлять не более одного вопроса каждые 5 минут.\nСледующий вопрос будет доступен в {dt}.",
-                reply_markup=to_main_menu)
+    random_name = await generate_full_name()
+    sent_m = await bot.send_message(chat_id=mainChannel,
+                                    text=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{message.text}</blockquote>",
+                                    parse_mode="HTML")
+    await bot.send_message(chat_id=spyChannel,
+                           text=f"{message.from_user.full_name} @{message.from_user.username} id:{sent_m.message_id}\n<blockquote>{message.text}</blockquote>",
+                           parse_mode="HTML")
+    await bot.edit_message_text(chat_id=mainChannel, message_id=sent_m.message_id,
+                                text=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{message.text}</blockquote>\nid: <code>{sent_m.message_id}</code>",
+                                parse_mode="HTML")
+    await message.answer('Отправлено!', reply_markup=to_main_menu)
+    await state.set_state(AnonStates.in_choose)
 
 
 @router.message(AnonStates.with_media)
 async def collect_media(message: Message, state: FSMContext):
-    if await can_ask_question(message.from_user.id):
-        random_name = await generate_full_name()
-        data = await state.get_data()
-        media = data.get("media", [])
-        if message.photo:
-            media.append(("photo", message.photo[-1].file_id))
-            await state.update_data(media=media)
-            await message.answer("Фото добавлено")
+    random_name = await generate_full_name()
+    data = await state.get_data()
+    media = data.get("media", [])
+    if message.photo:
+        media.append(("photo", message.photo[-1].file_id))
+        await state.update_data(media=media)
+        await message.answer("Фото добавлено")
+        return
+    if message.video:
+        media.append(("video", message.video.file_id))
+        await state.update_data(media=media)
+        await message.answer("Видео добавлено")
+        return
+    if message.document:
+        await message.answer('Пж не отправлять доки')
+    if "#end" in message.text:
+        mss = message.text
+        if not media:
+            await message.answer("Вы ничего не отправили")
             return
-        if message.video:
-            media.append(("video", message.video.file_id))
-            await state.update_data(media=media)
-            await message.answer("Видео добавлено")
-            return
-        if message.document:
-            await message.answer('Пж не отправлять доки')
-        if "#end" in message.text:
-            mss = message.text
-            if not media:
-                await message.answer("Вы ничего не отправили")
-                return
 
-            media_group = []
-            media_group2 = []
+        media_group = []
+        media_group2 = []
 
-            for i, (type_, file_id) in enumerate(media):
-                caption = f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{mss.replace('#end', '')}</blockquote>" if i == 0 else None
-                if type_ == "photo":
-                    media_group.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
-                elif type_ == "video":
-                    media_group.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
-            for j, (type_, file_id) in enumerate(media):
-                caption = f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{mss.replace('#end', '')}</blockquote>" if j == 0 else None
-                if type_ == "photo":
-                    media_group2.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
-                elif type_ == "video":
-                    media_group2.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
-            await message.bot.send_media_group(chat_id=mainChannel, media=media_group)
-            await message.bot.send_media_group(chat_id=spyChannel, media=media_group2)
-            await state.clear()
-            await state.set_state(AnonStates.in_choose)
-            await message.answer("Пост отправлен", reply_markup=to_main_menu)
+        for i, (type_, file_id) in enumerate(media):
+            caption = f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{mss.replace('#end', '')}</blockquote>" if i == 0 else None
+            if type_ == "photo":
+                media_group.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
+            elif type_ == "video":
+                media_group.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
+        for j, (type_, file_id) in enumerate(media):
+            caption = f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{mss.replace('#end', '')}</blockquote>" if j == 0 else None
+            if type_ == "photo":
+                media_group2.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
+            elif type_ == "video":
+                media_group2.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
+        sent_m = await message.bot.send_media_group(chat_id=mainChannel, media=media_group)
+        await message.bot.send_media_group(
+            chat_id=spyChannel,
+            media=[
+                InputMediaPhoto(
+                    media=media[0][1],
+                    caption=f"{message.from_user.full_name} @{message.from_user.username} id:{sent_m[0].message_id}\n<blockquote>{mss.replace('#end', '')}</blockquote>",
+                    parse_mode="HTML"
+                )
+            ] if len(media) == 1 else media_group2
+        )
+        await message.bot.edit_message_caption(
+            chat_id=mainChannel,
+            message_id=sent_m[0].message_id,
+            caption=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{mss.replace('#end', '')}</blockquote>\nid: <code>{sent_m[0].message_id}</code>",
+            parse_mode="HTML"
+        )
+        await state.clear()
+        await state.set_state(AnonStates.in_choose)
+        await message.answer("Пост отправлен", reply_markup=to_main_menu)
+
+
+@router.message(AnonStates.anon_c_room)
+async def send_anon_c_room_id(message: Message, state: FSMContext):
+    idi = message.text
+    if idi.isdigit():
+        if await check_message(int(idi)):
+            await message.answer(text='Отправьте комменты', reply_markup=to_main_menu)
+            mesgid = await get_message_group_id(int(idi))
+            await state.update_data(anon_c_room=[int(mesgid), int(idi)])
+            await state.set_state(AnonStates.anon_c_room2)
+        else:
+            await message.answer(text='Такого сообщение не существует')
+    elif idi == '#end':
+        await message.answer(text='Ладно', reply_markup=to_main_menu)
+        await state.set_state(AnonStates.in_choose)
+        return
     else:
-        time = await get_question_time(message.from_user.id)
-        if time:
-            dt = datetime.datetime.utcfromtimestamp(time + 18300, ).strftime('%H:%M:%S')
-            await message.answer(
-                f"Вы можете отправлять не более одного вопроса каждые 5 минут.\nСледующий вопрос будет доступен в {dt}.",
-                reply_markup=to_main_menu)
-            await state.set_state(AnonStates.in_choose)
+        await message.answer(text='Пожалуйста введите айди')
+
+
+@router.message(AnonStates.anon_c_room2)
+async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
+    uc = await generate_unique_code()
+    data = await state.get_data()
+    rn = await get_and_create_new_random_name(message.from_user.id)
+    if message.text == '#end':
+        await message.answer(text='Отправлено!', reply_markup=to_main_menu)
+        await state.set_state(AnonStates.in_choose)
+        return
+    reply_id = data['anon_c_room']
+    print(reply_id)
+    if message.text:
+        await bot.send_message(
+            chat_id=commGroup,
+            text=f"<blockquote>{rn} - {uc}</blockquote>\n<blockquote>{message.text}</blockquote>",
+            reply_to_message_id=reply_id[0],
+            parse_mode="HTML"
+        )
+        await bot.send_message(
+            chat_id=spyComm,
+            text=f"Anonymous Comment\n"
+                 f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                 f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
+                 f"<blockquote>{message.text}</blockquote>",
+            parse_mode="HTML"
+        )
+    elif message.photo:
+        await bot.send_photo(
+            chat_id=commGroup,
+            photo=message.photo[-1].file_id,
+            caption=f"<blockquote>{rn} - {uc}</blockquote>\n<blockquote>{message.caption or ''}</blockquote>",
+            reply_to_message_id=reply_id[0],
+            parse_mode="HTML"
+        )
+        await bot.send_photo(
+            chat_id=spyComm,
+            photo=message.photo[-1].file_id,
+            caption=f"Anonymous Comment\n"
+                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
+                    f"<blockquote>{message.caption or ''}</blockquote>",
+            parse_mode="HTML"
+        )
+    elif message.video:
+        await bot.send_video(
+            chat_id=commGroup,
+            video=message.video.file_id,
+            caption=f"<blockquote>{rn} - {uc}</blockquote>\n<blockquote>{message.caption or ''}</blockquote>",
+            reply_to_message_id=reply_id[0],
+            parse_mode="HTML"
+        )
+        await bot.send_video(
+            chat_id=spyComm,
+            video=message.video.file_id,
+            caption=f"Anonymous Comment\n"
+                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
+                    f"<blockquote>{message.caption or ''}</blockquote>",
+            parse_mode="HTML"
+        )
+    elif message.audio:
+        await bot.send_audio(
+            chat_id=commGroup,
+            audio=message.audio.file_id,
+            caption=f"<blockquote>{rn} - {uc}</blockquote>\n<blockquote>{message.caption or ''}</blockquote>",
+            reply_to_message_id=reply_id[0],
+            parse_mode="HTML"
+        )
+        await bot.send_audio(
+            chat_id=spyComm,
+            audio=message.audio.file_id,
+            caption=f"Anonymous Comment\n"
+                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
+                    f"<blockquote>{message.caption or ''}</blockquote>",
+            parse_mode="HTML"
+        )
+    elif message.voice:
+        await bot.send_voice(
+            chat_id=commGroup,
+            voice=message.voice.file_id,
+            caption=f"<blockquote>{rn} - {uc}</blockquote>\n<blockquote>{message.caption or ''}</blockquote>",
+            reply_to_message_id=reply_id[0],
+            parse_mode="HTML"
+        )
+        await bot.send_voice(
+            chat_id=spyComm,
+            voice=message.voice.file_id,
+            caption=f"Anonymous Comment\n"
+                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
+                    f"<blockquote>{message.caption or ''}</blockquote>",
+            parse_mode="HTML"
+        )
+    elif message.document:
+        await bot.send_document(
+            chat_id=commGroup,
+            document=message.document.file_id,
+            caption=f"<blockquote>{rn} - {uc}</blockquote>\n<blockquote>{message.caption or ''}</blockquote>",
+            reply_to_message_id=reply_id[0],
+            parse_mode="HTML"
+        )
+        await bot.send_document(
+            chat_id=spyComm,
+            document=message.document.file_id,
+            caption=f"Anonymous Comment\n"
+                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
+                    f"<blockquote>{message.caption or ''}</blockquote>",
+            parse_mode="HTML"
+        )
+    else:
+        await message.answer("Тип сообщения не поддерживается")

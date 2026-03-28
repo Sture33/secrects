@@ -1,5 +1,6 @@
 TOKEN = '8168264235:AAHrleQ8Jyie_6eyqRKQPrrcQu9kWJIkgx4'
 CEO = 6577127970
 mainChannel = -1003715046367
-# mainChannel = -1003715046367
 spyChannel = -1003746027572
+spyComm = -5146653677
+commGroup = -1003895970468

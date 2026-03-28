@@ -1,4 +1,5 @@
 import secrets
+import time
 
 first_names = [
     "James", "John", "Robert", "Michael", "William", "David", "Richard",
@@ -52,7 +53,33 @@ last_names = [
     "Hamilton", "Graham", "Reynolds", "Griffin", "Wallace"
 ]
 
+numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+           'w', 'x', 'y', 'z']
+
+
 async def generate_full_name():
     first = secrets.choice(first_names)
     last = secrets.choice(last_names)
     return f"{first} {last}"
+
+
+async def generate_unique_code():
+    return f"{secrets.choice(letters)}{secrets.choice(numbers)}{secrets.choice(numbers)}{secrets.choice(numbers)}{secrets.choice(numbers)}{secrets.choice(numbers)}{secrets.choice(numbers)}"
+
+
+async def get_current_period():
+    now = time.localtime()
+    day = now.tm_yday
+    hour = now.tm_hour
+
+    if 0 >= hour < 7:
+        return f'{day}.{1}'
+    elif 7 >= hour < 13:
+        return f'{day}.{2}'
+    elif 13 >= hour < 19:
+        return f'{day}.{3}'
+    elif 19 >= hour <= 23:
+        return f'{day}.{4}'
+    else:
+        return False

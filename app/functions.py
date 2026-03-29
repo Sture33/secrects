@@ -73,13 +73,13 @@ async def get_current_period():
     day = now.tm_yday
     hour = now.tm_hour
 
-    if 0 >= hour < 7:
+    if 7 > hour >= 0:
         return f'{day}.{1}'
-    elif 7 >= hour < 13:
+    elif 13 > hour >= 7:
         return f'{day}.{2}'
-    elif 13 >= hour < 19:
+    elif 19 > hour >= 13:
         return f'{day}.{3}'
-    elif 19 >= hour <= 23:
+    elif 23 >= hour >= 19:
         return f'{day}.{4}'
     else:
         return False

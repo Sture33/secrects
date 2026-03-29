@@ -220,7 +220,7 @@ async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
         await bot.send_message(
             chat_id=spyComm,
             text=f"Anonymous Comment\n"
-                 f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                 f"{message.from_user.username} | @{message.from_user.username}\n"
                  f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
                  f"<blockquote>{message.text}</blockquote>",
             parse_mode="HTML"
@@ -237,7 +237,7 @@ async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
             chat_id=spyComm,
             photo=message.photo[-1].file_id,
             caption=f"Anonymous Comment\n"
-                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"{message.from_user.username} | @{message.from_user.username}\n"
                     f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
                     f"<blockquote>{message.caption or ''}</blockquote>",
             parse_mode="HTML"
@@ -254,7 +254,7 @@ async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
             chat_id=spyComm,
             video=message.video.file_id,
             caption=f"Anonymous Comment\n"
-                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"{message.from_user.username} | @{message.from_user.username}\n"
                     f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
                     f"<blockquote>{message.caption or ''}</blockquote>",
             parse_mode="HTML"
@@ -271,7 +271,7 @@ async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
             chat_id=spyComm,
             audio=message.audio.file_id,
             caption=f"Anonymous Comment\n"
-                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"{message.from_user.username} | @{message.from_user.username}\n"
                     f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
                     f"<blockquote>{message.caption or ''}</blockquote>",
             parse_mode="HTML"
@@ -288,7 +288,7 @@ async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
             chat_id=spyComm,
             voice=message.voice.file_id,
             caption=f"Anonymous Comment\n"
-                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"{message.from_user.username} | @{message.from_user.username}\n"
                     f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
                     f"<blockquote>{message.caption or ''}</blockquote>",
             parse_mode="HTML"
@@ -305,7 +305,7 @@ async def send_anon_c_room(message: Message, state: FSMContext, bot: Bot):
             chat_id=spyComm,
             document=message.document.file_id,
             caption=f"Anonymous Comment\n"
-                    f"{message.from_user.username} | @{message.from_user.full_name}\n"
+                    f"{message.from_user.username} | @{message.from_user.username}\n"
                     f"https://t.me/secrets_messages/{reply_id[1]}\n<blockquote>{rn} - {uc}</blockquote>\n"
                     f"<blockquote>{message.caption or ''}</blockquote>",
             parse_mode="HTML"

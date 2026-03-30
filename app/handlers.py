@@ -125,58 +125,89 @@ async def collect_media(message: Message, state: FSMContext):
     random_name = await generate_full_name()
     data = await state.get_data()
     media = data.get("media", [])
+
+    # 📥 Сбор медиа
     if message.photo:
         media.append(("photo", message.photo[-1].file_id))
         await state.update_data(media=media)
         await message.answer("Фото добавлено")
         return
+
     if message.video:
         media.append(("video", message.video.file_id))
         await state.update_data(media=media)
         await message.answer("Видео добавлено")
         return
+
     if message.document:
-        await message.answer('Пж не отправлять доки')
-    if "#end" in message.text:
-        mss = message.text
+        await message.answer("Пж не отправлять доки")
+        return
+
+    # 📤 Завершение
+    if message.text and "#end" in message.text:
+        mss = message.text.replace("#end", "").strip()
+
         if not media:
             await message.answer("Вы ничего не отправили")
             return
 
         media_group = []
-        media_group2 = []
+        media_group_spy = []
 
+        # 📦 Формируем альбом для основного канала
         for i, (type_, file_id) in enumerate(media):
-            caption = f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{mss.replace('#end', '')}</blockquote>" if i == 0 else None
+            caption = (
+                f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n"
+                f"<blockquote>{mss}</blockquote>"
+                if i == 0 else None
+            )
+
             if type_ == "photo":
                 media_group.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
             elif type_ == "video":
                 media_group.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
+
+        # 📦 Формируем альбом для spy канала
         for j, (type_, file_id) in enumerate(media):
-            caption = f"{message.from_user.full_name} @{message.from_user.username}\n<blockquote>{mss.replace('#end', '')}</blockquote>" if j == 0 else None
+            caption = (
+                f"{message.from_user.full_name} @{message.from_user.username}\n"
+                f"<blockquote>{mss}</blockquote>"
+                if j == 0 else None
+            )
+
             if type_ == "photo":
-                media_group2.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
+                media_group_spy.append(InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"))
             elif type_ == "video":
-                media_group2.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
-        sent_m = await message.bot.send_media_group(chat_id=mainChannel, media=media_group)
+                media_group_spy.append(InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML"))
+
+        # 🚀 Отправка в основной канал
+        sent_m = await message.bot.send_media_group(
+            chat_id=mainChannel,
+            media=media_group
+        )
+
+        # 🚀 Отправка в spy канал (универсально, без костылей)
         await message.bot.send_media_group(
             chat_id=spyChannel,
-            media=[
-                InputMediaPhoto(
-                    media=media[0][1],
-                    caption=f"{message.from_user.full_name} @{message.from_user.username} id:{sent_m[0].message_id}\n<blockquote>{mss.replace('#end', '')}</blockquote>",
-                    parse_mode="HTML"
-                )
-            ] if len(media) == 1 else media_group2
+            media=media_group_spy
         )
+
+        # ✏️ Добавляем ID к первому сообщению
         await message.bot.edit_message_caption(
             chat_id=mainChannel,
             message_id=sent_m[0].message_id,
-            caption=f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n<blockquote>{mss.replace('#end', '')}</blockquote>\nid: <code>{sent_m[0].message_id}</code>",
+            caption=(
+                f"<blockquote>Анонимный субъект - {random_name}</blockquote>\n\n"
+                f"<blockquote>{mss}</blockquote>\n"
+                f"id: <code>{sent_m[0].message_id}</code>"
+            ),
             parse_mode="HTML"
         )
+
+        # 🔄 Сброс состояния
         await state.clear()
         await state.set_state(AnonStates.in_choose)
+
         await message.answer("Пост отправлен", reply_markup=to_main_menu)
 
 

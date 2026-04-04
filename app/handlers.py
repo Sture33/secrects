@@ -18,11 +18,15 @@ from db.main import create_new_user, check_user, create_new_message, check_messa
 
 router = Router()
 
+
+
 async def setup_bot_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Запустить бота"),
     ]
     await bot.set_my_commands(commands)
+
+
 @router.message(F.chat.type.in_(["group", "supergroup"]))
 async def handle_group_message(message: Message):
     if message.forward_from_chat:
@@ -46,19 +50,10 @@ async def show_main_menu(message: Message, state: FSMContext):
         )
 
 
-async def is_subscribed(bot: Bot, user_id):
-    member = await bot.get_chat_member(mainChannel, user_id)
-    return member.status in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR)
-
-
 @router.message(F.chat.type == "private", CommandStart())
 async def start(message: Message, state: FSMContext, bot: Bot):
-    if await is_subscribed(bot, message.from_user.id):
-        await show_main_menu(message, state)
-        await get_and_create_new_random_name(message.from_user.id)
-    else:
-        await message.answer(
-            'Вы не подписаны на наш канал\nПожалуйста сначало подпишитесь\nhttps://t.me/+3A1xdWCgeE8xY2Zi')
+    await show_main_menu(message, state)
+    await get_and_create_new_random_name(message.from_user.id)
 
 
 @router.message(AnonStates.in_choose)
